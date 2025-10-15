@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UAZapigo Multi-Atendimento</title>
+    <title>Chat Locagora</title>
     <style>
         * {
             margin: 0;
@@ -232,31 +232,95 @@
                         console.log('✅ Dados salvos no localStorage do iframe');
                     }
                     
-                    // Tenta preencher campos de formulário se existirem
-                    const tokenInputs = iframeDoc.querySelectorAll('input[name*="token"], input[id*="token"], input[placeholder*="token"]');
-                    tokenInputs.forEach(input => {
-                        if (input.value === '') {
-                            input.value = AUTO_DATA.token;
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    });
-                    
-                    // Tenta preencher campos de URL da API
-                    const urlInputs = iframeDoc.querySelectorAll('input[name*="url"], input[id*="url"], input[placeholder*="url"]');
-                    urlInputs.forEach(input => {
-                        if (input.value === '' || input.value.includes('uazapi')) {
-                            input.value = AUTO_DATA.apiUrl;
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    });
+                    // Preenche campos específicos do modal "Minhas credenciais"
+                    fillCredentialsModal(iframeDoc);
                     
                     console.log('✅ Campos de formulário preenchidos automaticamente');
                 }
             } catch (error) {
                 console.log('⚠️ Acesso direto bloqueado pelo CORS (normal):', error.message);
             }
+        }
+        
+        function fillCredentialsModal(doc) {
+            console.log('🔍 Procurando campos do modal de credenciais...');
+            
+            // Procura por campos com placeholder "URL" ou "INSTANCIA"
+            const urlField = doc.querySelector('input[placeholder*="URL"], input[placeholder*="url"], input[name*="url"], input[id*="url"]');
+            const tokenField = doc.querySelector('input[placeholder*="INSTANCIA"], input[placeholder*="token"], input[name*="token"], input[id*="token"]');
+            
+            if (urlField) {
+                console.log('✅ Campo URL encontrado:', urlField);
+                urlField.value = AUTO_DATA.apiUrl;
+                urlField.dispatchEvent(new Event('input', { bubbles: true }));
+                urlField.dispatchEvent(new Event('change', { bubbles: true }));
+                urlField.dispatchEvent(new Event('blur', { bubbles: true }));
+            }
+            
+            if (tokenField) {
+                console.log('✅ Campo Token encontrado:', tokenField);
+                tokenField.value = AUTO_DATA.token;
+                tokenField.dispatchEvent(new Event('input', { bubbles: true }));
+                tokenField.dispatchEvent(new Event('change', { bubbles: true }));
+                tokenField.dispatchEvent(new Event('blur', { bubbles: true }));
+            }
+            
+            // Procura por campos com labels específicos
+            const urlLabel = doc.querySelector('label:contains("URL do Servidor"), label:contains("Server URL")');
+            const tokenLabel = doc.querySelector('label:contains("Instance token"), label:contains("Token")');
+            
+            if (urlLabel) {
+                const urlInput = urlLabel.nextElementSibling || urlLabel.parentElement.querySelector('input');
+                if (urlInput && urlInput.tagName === 'INPUT') {
+                    console.log('✅ Campo URL encontrado via label:', urlInput);
+                    urlInput.value = AUTO_DATA.apiUrl;
+                    urlInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    urlInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            
+            if (tokenLabel) {
+                const tokenInput = tokenLabel.nextElementSibling || tokenLabel.parentElement.querySelector('input');
+                if (tokenInput && tokenInput.tagName === 'INPUT') {
+                    console.log('✅ Campo Token encontrado via label:', tokenInput);
+                    tokenInput.value = AUTO_DATA.token;
+                    tokenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    tokenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            
+            // Procura por todos os inputs vazios e tenta preencher
+            const allInputs = doc.querySelectorAll('input[type="text"], input[type="url"], input:not([type])');
+            allInputs.forEach((input, index) => {
+                if (input.value === '' || input.value === input.placeholder) {
+                    console.log(`🔍 Input ${index} vazio encontrado:`, input);
+                    
+                    // Se o placeholder contém "URL" ou "url"
+                    if (input.placeholder && input.placeholder.toLowerCase().includes('url')) {
+                        console.log('✅ Preenchendo campo URL:', input);
+                        input.value = AUTO_DATA.apiUrl;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    
+                    // Se o placeholder contém "INSTANCIA" ou "token"
+                    if (input.placeholder && (input.placeholder.includes('INSTANCIA') || input.placeholder.toLowerCase().includes('token'))) {
+                        console.log('✅ Preenchendo campo Token:', input);
+                        input.value = AUTO_DATA.token;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            });
+            
+            // Procura por botão "Salvar" e clica automaticamente após preencher
+            setTimeout(() => {
+                const saveButton = doc.querySelector('button:contains("Salvar"), button:contains("Save"), [class*="save"], [id*="save"]');
+                if (saveButton) {
+                    console.log('✅ Botão Salvar encontrado:', saveButton);
+                    // Não clica automaticamente, deixa o usuário decidir
+                }
+            }, 1000);
         }
         
         // Escuta mensagens do iframe
@@ -298,6 +362,31 @@
                 injectAutoData();
             }, 3000);
         });
+        
+        // Monitora continuamente por mudanças no iframe
+        setInterval(() => {
+            try {
+                const iframeDoc = bubbleFrame.contentDocument || bubbleFrame.contentWindow.document;
+                if (iframeDoc) {
+                    // Verifica se há campos vazios que precisam ser preenchidos
+                    const emptyInputs = iframeDoc.querySelectorAll('input[type="text"], input[type="url"], input:not([type])');
+                    let needsFilling = false;
+                    
+                    emptyInputs.forEach(input => {
+                        if (input.value === '' && input.placeholder) {
+                            needsFilling = true;
+                        }
+                    });
+                    
+                    if (needsFilling) {
+                        console.log('🔄 Detectados campos vazios, tentando preencher...');
+                        fillCredentialsModal(iframeDoc);
+                    }
+                }
+            } catch (error) {
+                // Silencioso - CORS pode bloquear
+            }
+        }, 5000); // Verifica a cada 5 segundos
     </script>
 </body>
 </html>
