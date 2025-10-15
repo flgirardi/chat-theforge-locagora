@@ -123,7 +123,7 @@
         <div class="iframe-container">
             <iframe 
                 id="bubbleFrame"
-                src="https://uazapigo-multiatendimento.bubbleapps.io/"
+                src="https://uazapigo-multiatendimento.bubbleapps.io/?auto_token=1753104f-5a3f-4e9d-a9f7-ac3d48967111&auto_api_url=https://theforge-ia.uazapi.com&auto_instance_id=default-instance&auto_attendant_id=default-attendant"
                 title="UAZapigo Multi-Atendimento"
                 allow="camera; microphone; geolocation; payment; usb; magnetometer; accelerometer; gyroscope"
                 sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation"
@@ -169,8 +169,8 @@
             loading.style.display = 'flex';
             errorMessage.style.display = 'none';
             
-            // Recarrega o iframe
-            bubbleFrame.src = bubbleFrame.src;
+            // Recarrega o iframe com os parâmetros automáticos
+            bubbleFrame.src = `https://uazapigo-multiatendimento.bubbleapps.io/?auto_token=${AUTO_DATA.token}&auto_api_url=${encodeURIComponent(AUTO_DATA.apiUrl)}&auto_instance_id=${AUTO_DATA.instanceId}&auto_attendant_id=${AUTO_DATA.attendantId}`;
             
             // Timeout de segurança
             loadTimeout = setTimeout(() => {
@@ -181,6 +181,42 @@
         }
         
         function injectAutoData() {
+            console.log('🚀 Tentando injetar dados automaticamente...');
+            
+            // Método principal: postMessage (funciona com CORS)
+            try {
+                bubbleFrame.contentWindow.postMessage({
+                    type: 'AUTO_DATA_INJECTED',
+                    data: AUTO_DATA,
+                    timestamp: Date.now()
+                }, '*');
+                
+                console.log('✅ Dados enviados via postMessage:', AUTO_DATA);
+                
+                // Tenta múltiplas vezes para garantir que o Bubble receba
+                setTimeout(() => {
+                    bubbleFrame.contentWindow.postMessage({
+                        type: 'AUTO_DATA_INJECTED',
+                        data: AUTO_DATA,
+                        timestamp: Date.now(),
+                        retry: true
+                    }, '*');
+                }, 1000);
+                
+                setTimeout(() => {
+                    bubbleFrame.contentWindow.postMessage({
+                        type: 'AUTO_DATA_INJECTED',
+                        data: AUTO_DATA,
+                        timestamp: Date.now(),
+                        retry: true
+                    }, '*');
+                }, 3000);
+                
+            } catch (error) {
+                console.log('⚠️ Erro no postMessage:', error.message);
+            }
+            
+            // Método alternativo: tentar acesso direto (pode falhar com CORS)
             try {
                 const iframeDoc = bubbleFrame.contentDocument || bubbleFrame.contentWindow.document;
                 
@@ -193,7 +229,7 @@
                         iframeWindow.localStorage.setItem('instance_id', AUTO_DATA.instanceId);
                         iframeWindow.localStorage.setItem('attendant_id', AUTO_DATA.attendantId);
                         
-                        console.log('✅ Dados injetados automaticamente:', AUTO_DATA);
+                        console.log('✅ Dados salvos no localStorage do iframe');
                     }
                     
                     // Tenta preencher campos de formulário se existirem
@@ -216,24 +252,10 @@
                         }
                     });
                     
-                    // Dispara evento customizado para o Bubble detectar os dados
-                    iframeWindow.postMessage({
-                        type: 'AUTO_DATA_INJECTED',
-                        data: AUTO_DATA
-                    }, '*');
-                    
+                    console.log('✅ Campos de formulário preenchidos automaticamente');
                 }
             } catch (error) {
-                console.log('⚠️ Não foi possível injetar dados automaticamente (normal devido ao CORS):', error.message);
-                // Mesmo com erro, tenta enviar via postMessage
-                try {
-                    bubbleFrame.contentWindow.postMessage({
-                        type: 'AUTO_DATA_INJECTED',
-                        data: AUTO_DATA
-                    }, '*');
-                } catch (e) {
-                    console.log('⚠️ PostMessage também falhou:', e.message);
-                }
+                console.log('⚠️ Acesso direto bloqueado pelo CORS (normal):', error.message);
             }
         }
         
