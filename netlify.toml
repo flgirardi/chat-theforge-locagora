@@ -1,0 +1,16 @@
+[build]
+  publish = "."
+  command = "echo 'Static site - no build needed'"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=()"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
