@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Locagora</title>
+    <title>UAZapigo Multi-Atendimento</title>
     <style>
         * {
             margin: 0;
@@ -140,10 +140,23 @@
         
         let loadTimeout;
         
+        // Dados hardcoded para preenchimento automático
+        const AUTO_DATA = {
+            token: '1753104f-5a3f-4e9d-a9f7-ac3d48967111',
+            apiUrl: 'https://theforge-ia.uazapi.com',
+            instanceId: 'default-instance', // Ajuste conforme necessário
+            attendantId: 'default-attendant' // Ajuste conforme necessário
+        };
+        
         function handleLoad() {
             clearTimeout(loadTimeout);
             loading.style.display = 'none';
             errorMessage.style.display = 'none';
+            
+            // Injeta os dados automaticamente após o carregamento
+            setTimeout(() => {
+                injectAutoData();
+            }, 2000); // Aguarda 2 segundos para garantir que o Bubble carregou
         }
         
         function handleError() {
@@ -167,6 +180,78 @@
             }, 30000); // 30 segundos
         }
         
+        function injectAutoData() {
+            try {
+                const iframeDoc = bubbleFrame.contentDocument || bubbleFrame.contentWindow.document;
+                
+                if (iframeDoc) {
+                    // Injeta o token no localStorage do iframe
+                    const iframeWindow = bubbleFrame.contentWindow;
+                    if (iframeWindow && iframeWindow.localStorage) {
+                        iframeWindow.localStorage.setItem('uazapi_token', AUTO_DATA.token);
+                        iframeWindow.localStorage.setItem('uazapi_url', AUTO_DATA.apiUrl);
+                        iframeWindow.localStorage.setItem('instance_id', AUTO_DATA.instanceId);
+                        iframeWindow.localStorage.setItem('attendant_id', AUTO_DATA.attendantId);
+                        
+                        console.log('✅ Dados injetados automaticamente:', AUTO_DATA);
+                    }
+                    
+                    // Tenta preencher campos de formulário se existirem
+                    const tokenInputs = iframeDoc.querySelectorAll('input[name*="token"], input[id*="token"], input[placeholder*="token"]');
+                    tokenInputs.forEach(input => {
+                        if (input.value === '') {
+                            input.value = AUTO_DATA.token;
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    });
+                    
+                    // Tenta preencher campos de URL da API
+                    const urlInputs = iframeDoc.querySelectorAll('input[name*="url"], input[id*="url"], input[placeholder*="url"]');
+                    urlInputs.forEach(input => {
+                        if (input.value === '' || input.value.includes('uazapi')) {
+                            input.value = AUTO_DATA.apiUrl;
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    });
+                    
+                    // Dispara evento customizado para o Bubble detectar os dados
+                    iframeWindow.postMessage({
+                        type: 'AUTO_DATA_INJECTED',
+                        data: AUTO_DATA
+                    }, '*');
+                    
+                }
+            } catch (error) {
+                console.log('⚠️ Não foi possível injetar dados automaticamente (normal devido ao CORS):', error.message);
+                // Mesmo com erro, tenta enviar via postMessage
+                try {
+                    bubbleFrame.contentWindow.postMessage({
+                        type: 'AUTO_DATA_INJECTED',
+                        data: AUTO_DATA
+                    }, '*');
+                } catch (e) {
+                    console.log('⚠️ PostMessage também falhou:', e.message);
+                }
+            }
+        }
+        
+        // Escuta mensagens do iframe
+        window.addEventListener('message', function(event) {
+            if (event.origin.includes('bubbleapps.io') || event.origin.includes('uazapigo')) {
+                console.log('📨 Mensagem recebida do Bubble:', event.data);
+                
+                // Se o Bubble pedir os dados, envia automaticamente
+                if (event.data && event.data.type === 'REQUEST_AUTO_DATA') {
+                    event.source.postMessage({
+                        type: 'AUTO_DATA_RESPONSE',
+                        data: AUTO_DATA
+                    }, event.origin);
+                }
+            }
+        });
+        
         // Timeout inicial
         loadTimeout = setTimeout(() => {
             if (loading.style.display !== 'none') {
@@ -184,7 +269,13 @@
         if ('ontouchstart' in window) {
             document.body.style.touchAction = 'manipulation';
         }
+        
+        // Injeta dados também quando o iframe fica focado
+        bubbleFrame.addEventListener('load', function() {
+            setTimeout(() => {
+                injectAutoData();
+            }, 3000);
+        });
     </script>
 </body>
 </html>
-
