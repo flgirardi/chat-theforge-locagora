@@ -188,10 +188,7 @@
         function injectAutoData() {
             console.log('🚀 Tentando injetar dados automaticamente...');
             
-            // Método 1: URL Parameters (mais confiável para Bubble)
-            console.log('📡 Enviando dados via URL parameters...');
-            
-            // Método 2: postMessage com múltiplas tentativas
+            // Método principal: postMessage (funciona com CORS)
             try {
                 bubbleFrame.contentWindow.postMessage({
                     type: 'AUTO_DATA_INJECTED',
@@ -224,70 +221,14 @@
                 console.log('⚠️ Erro no postMessage:', error.message);
             }
             
-            // Método 3: Tentar acesso direto ao iframe
+            // Método específico para campos com classes bubble-element
             try {
                 const iframeDoc = bubbleFrame.contentDocument || bubbleFrame.contentWindow.document;
                 if (iframeDoc) {
-                    console.log('🔍 Acesso direto ao iframe conseguido!');
                     fillSpecificBubbleFields(iframeDoc);
-                    fillCredentialsModal(iframeDoc);
                 }
             } catch (error) {
-                console.log('⚠️ Erro ao acessar iframe diretamente:', error.message);
-            }
-            
-            // Método 4: Usar window.parent para comunicação com Bubble
-            try {
-                if (window.parent && window.parent !== window) {
-                    console.log('📤 Enviando dados para window.parent...');
-                    window.parent.postMessage({
-                        type: 'BUBBLE_AUTO_DATA',
-                        data: AUTO_DATA,
-                        timestamp: Date.now()
-                    }, '*');
-                }
-            } catch (error) {
-                console.log('⚠️ Erro ao enviar para window.parent:', error.message);
-            }
-            
-            // Método 5: Usar localStorage e sessionStorage para ambiente Bubble
-            try {
-                console.log('💾 Salvando dados no localStorage e sessionStorage...');
-                
-                // Salva no localStorage da página principal
-                localStorage.setItem('uazapi_token', AUTO_DATA.token);
-                localStorage.setItem('uazapi_url', AUTO_DATA.apiUrl);
-                localStorage.setItem('instance_id', AUTO_DATA.instanceId);
-                localStorage.setItem('attendant_id', AUTO_DATA.attendantId);
-                
-                // Salva no sessionStorage também
-                sessionStorage.setItem('uazapi_token', AUTO_DATA.token);
-                sessionStorage.setItem('uazapi_url', AUTO_DATA.apiUrl);
-                sessionStorage.setItem('instance_id', AUTO_DATA.instanceId);
-                sessionStorage.setItem('attendant_id', AUTO_DATA.attendantId);
-                
-                // Marca como dados automáticos
-                localStorage.setItem('auto_data_injected', 'true');
-                localStorage.setItem('auto_data_timestamp', Date.now().toString());
-                
-                console.log('✅ Dados salvos no localStorage/sessionStorage');
-                
-                // Tenta acessar o localStorage do iframe
-                try {
-                    const iframeWindow = bubbleFrame.contentWindow;
-                    if (iframeWindow && iframeWindow.localStorage) {
-                        iframeWindow.localStorage.setItem('uazapi_token', AUTO_DATA.token);
-                        iframeWindow.localStorage.setItem('uazapi_url', AUTO_DATA.apiUrl);
-                        iframeWindow.localStorage.setItem('instance_id', AUTO_DATA.instanceId);
-                        iframeWindow.localStorage.setItem('attendant_id', AUTO_DATA.attendantId);
-                        console.log('✅ Dados salvos no localStorage do iframe');
-                    }
-                } catch (error) {
-                    console.log('⚠️ Não foi possível acessar localStorage do iframe:', error.message);
-                }
-                
-            } catch (error) {
-                console.log('⚠️ Erro ao salvar no localStorage:', error.message);
+                console.log('⚠️ Erro ao acessar campos específicos:', error.message);
             }
             
             // Método alternativo: tentar acesso direto (pode falhar com CORS)
@@ -510,29 +451,6 @@
             }, 3000);
         });
         
-        // Sistema mais agressivo de retry para ambiente Bubble
-        let retryCount = 0;
-        const maxRetries = 20;
-        
-        function aggressiveRetry() {
-            if (retryCount < maxRetries) {
-                retryCount++;
-                console.log(`🔄 Tentativa ${retryCount}/${maxRetries} de preenchimento automático...`);
-                
-                setTimeout(() => {
-                    injectAutoData();
-                    aggressiveRetry();
-                }, 2000); // Tenta a cada 2 segundos
-            } else {
-                console.log('⏰ Máximo de tentativas atingido. Parando retry automático.');
-            }
-        }
-        
-        // Inicia o retry agressivo após o carregamento
-        setTimeout(() => {
-            aggressiveRetry();
-        }, 5000);
-        
         // Monitora continuamente por mudanças no iframe
         setInterval(() => {
             try {
@@ -551,103 +469,12 @@
                     if (needsFilling) {
                         console.log('🔄 Detectados campos vazios, tentando preencher...');
                         fillCredentialsModal(iframeDoc);
-                        fillSpecificBubbleFields(iframeDoc);
                     }
                 }
             } catch (error) {
                 // Silencioso - CORS pode bloquear
             }
-        }, 3000); // Verifica a cada 3 segundos (mais frequente)
-        
-        // Escuta eventos do Bubble
-        window.addEventListener('message', function(event) {
-            if (event.origin.includes('bubbleapps.io') || event.origin.includes('uazapigo')) {
-                console.log('📨 Mensagem recebida do Bubble:', event.data);
-                
-                // Se o Bubble pedir os dados, envia automaticamente
-                if (event.data && event.data.type === 'REQUEST_AUTO_DATA') {
-                    event.source.postMessage({
-                        type: 'AUTO_DATA_RESPONSE',
-                        data: AUTO_DATA
-                    }, event.origin);
-                }
-                
-                // Se o Bubble confirmar que recebeu os dados
-                if (event.data && event.data.type === 'AUTO_DATA_RECEIVED') {
-                    console.log('✅ Bubble confirmou que recebeu os dados!');
-                    retryCount = maxRetries; // Para o retry
-                }
-            }
-        });
-        
-        // Tenta injetar dados quando a página ganha foco
-        window.addEventListener('focus', function() {
-            console.log('🎯 Página ganhou foco, tentando injetar dados...');
-            setTimeout(() => {
-                injectAutoData();
-            }, 1000);
-        });
-        
-        // Tenta injetar dados quando o usuário interage com a página
-        document.addEventListener('click', function() {
-            console.log('👆 Usuário clicou, tentando injetar dados...');
-            setTimeout(() => {
-                injectAutoData();
-            }, 500);
-        });
-        
-        // Função específica para ambiente Bubble
-        function bubbleReadyCheck() {
-            console.log('🔍 Verificando se o Bubble está pronto...');
-            
-            // Verifica se estamos em um ambiente Bubble
-            if (window.location.href.includes('bubbleapps.io') || 
-                window.location.href.includes('bubble.io') ||
-                document.querySelector('[class*="bubble"]') ||
-                document.querySelector('[id*="bubble"]')) {
-                
-                console.log('🎯 Ambiente Bubble detectado!');
-                
-                // Injeta dados imediatamente
-                injectAutoData();
-                
-                // Tenta injetar dados quando elementos Bubble aparecem
-                const observer = new MutationObserver(function(mutations) {
-                    mutations.forEach(function(mutation) {
-                        if (mutation.type === 'childList') {
-                            mutation.addedNodes.forEach(function(node) {
-                                if (node.nodeType === 1) { // Element node
-                                    if (node.classList && (
-                                        node.classList.contains('bubble-element') ||
-                                        node.querySelector && node.querySelector('[class*="bubble"]')
-                                    )) {
-                                        console.log('🎯 Elemento Bubble detectado, injetando dados...');
-                                        setTimeout(() => {
-                                            injectAutoData();
-                                        }, 1000);
-                                    }
-                                }
-                            });
-                        }
-                    });
-                });
-                
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
-                });
-            }
-        }
-        
-        // Executa a verificação quando o DOM estiver pronto
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', bubbleReadyCheck);
-        } else {
-            bubbleReadyCheck();
-        }
-        
-        // Executa a verificação também após um delay
-        setTimeout(bubbleReadyCheck, 3000);
+        }, 5000); // Verifica a cada 5 segundos
     </script>
 </body>
 </html>
