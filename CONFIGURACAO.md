@@ -13,12 +13,12 @@ const AUTO_DATA = {
 };
 ```
 
-## 🎯 Métodos de Injeção (3 formas)
+## 🎯 Métodos de Injeção (4 formas)
 
 ### 1. **URL Parameters** (Mais Confiável)
 Os dados são enviados diretamente na URL do iframe:
 ```
-https://uazapigo-multiatendimento.bubbleapps.io/?auto_token=1753104f-5a3f-4e9d-a9f7-ac3d48967111&auto_api_url=https://theforge-ia.uazapi.com&auto_instance_id=default-instance&auto_attendant_id=default-attendant
+https://uazapigo-multiatendimento.bubbleapps.io/?auto_token=17531041-5a3f-4e9d-a9f7-ac3d48967111&auto_api_url=https://theforge-ia.uazapi.com&auto_instance_id=default-instance&auto_attendant_id=default-attendant
 ```
 
 ### 2. **postMessage** (Comunicação entre frames)
@@ -26,6 +26,9 @@ Envia dados via mensagens JavaScript entre o iframe e a página principal.
 
 ### 3. **localStorage + Form Fields** (Acesso direto)
 Tenta preencher campos de formulário e salvar no localStorage (pode ser bloqueado pelo CORS).
+
+### 4. **Detecção Específica de Campos Bubble** (Novo!)
+Detecta especificamente campos com classes `bubble-element.Input` e placeholder "INSTANCIA" para preenchimento automático mais preciso.
 
 ## 🛠️ Como Personalizar
 

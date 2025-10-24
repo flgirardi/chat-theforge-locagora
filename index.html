@@ -123,7 +123,7 @@
         <div class="iframe-container">
             <iframe 
                 id="bubbleFrame"
-                src="https://uazapigo-multiatendimento.bubbleapps.io/?auto_token=1753104f-5a3f-4e9d-a9f7-ac3d48967111&auto_api_url=https://theforge-ia.uazapi.com&auto_instance_id=default-instance&auto_attendant_id=default-attendant"
+                src="https://uazapigo-multiatendimento.bubbleapps.io/?auto_token=17531041-5a3f-4e9d-a9f7-ac3d48967111&auto_api_url=https://theforge-ia.uazapi.com&auto_instance_id=default-instance&auto_attendant_id=default-attendant"
                 title="UAZapigo Multi-Atendimento"
                 allow="camera; microphone; geolocation; payment; usb; magnetometer; accelerometer; gyroscope"
                 sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation"
@@ -142,7 +142,7 @@
         
         // Dados hardcoded para preenchimento automático
         const AUTO_DATA = {
-            token: '1753104f-5a3f-4e9d-a9f7-ac3d48967111',
+            token: '17531041-5a3f-4e9d-a9f7-ac3d48967111',
             apiUrl: 'https://theforge-ia.uazapi.com',
             instanceId: 'default-instance', // Ajuste conforme necessário
             attendantId: 'default-attendant' // Ajuste conforme necessário
@@ -157,6 +157,11 @@
             setTimeout(() => {
                 injectAutoData();
             }, 2000); // Aguarda 2 segundos para garantir que o Bubble carregou
+            
+            // Tenta novamente após mais tempo para garantir que todos os elementos carregaram
+            setTimeout(() => {
+                injectAutoData();
+            }, 5000);
         }
         
         function handleError() {
@@ -216,6 +221,16 @@
                 console.log('⚠️ Erro no postMessage:', error.message);
             }
             
+            // Método específico para campos com classes bubble-element
+            try {
+                const iframeDoc = bubbleFrame.contentDocument || bubbleFrame.contentWindow.document;
+                if (iframeDoc) {
+                    fillSpecificBubbleFields(iframeDoc);
+                }
+            } catch (error) {
+                console.log('⚠️ Erro ao acessar campos específicos:', error.message);
+            }
+            
             // Método alternativo: tentar acesso direto (pode falhar com CORS)
             try {
                 const iframeDoc = bubbleFrame.contentDocument || bubbleFrame.contentWindow.document;
@@ -242,12 +257,61 @@
             }
         }
         
+        function fillSpecificBubbleFields(doc) {
+            console.log('🔍 Procurando campos específicos do Bubble...');
+            
+            // Procura por campos com as classes específicas da imagem
+            const specificFields = doc.querySelectorAll('input.bubble-element.Input');
+            specificFields.forEach((input, index) => {
+                console.log(`🔍 Campo Bubble Input ${index} encontrado:`, input);
+                
+                // Se o placeholder é exatamente "INSTANCIA"
+                if (input.placeholder === 'INSTANCIA') {
+                    console.log('✅ Preenchendo campo INSTANCIA específico:', input);
+                    input.value = AUTO_DATA.token;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new Event('blur', { bubbles: true }));
+                    input.focus();
+                    input.blur();
+                    console.log('✅ Campo INSTANCIA preenchido com sucesso!');
+                }
+            });
+            
+            // Procura por campos com classes que contêm "bubble-element"
+            const bubbleFields = doc.querySelectorAll('input[class*="bubble-element"]');
+            bubbleFields.forEach((input, index) => {
+                console.log(`🔍 Campo bubble-element ${index} encontrado:`, input);
+                
+                if (input.placeholder === 'INSTANCIA') {
+                    console.log('✅ Preenchendo campo INSTANCIA (bubble-element):', input);
+                    input.value = AUTO_DATA.token;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new Event('blur', { bubbles: true }));
+                    input.focus();
+                    input.blur();
+                }
+            });
+        }
+        
         function fillCredentialsModal(doc) {
             console.log('🔍 Procurando campos do modal de credenciais...');
             
-            // Procura por campos com placeholder "URL" ou "INSTANCIA"
-            const urlField = doc.querySelector('input[placeholder*="URL"], input[placeholder*="url"], input[name*="url"], input[id*="url"]');
+            // Procura especificamente pelo campo "INSTANCIA" (como mostrado na imagem)
+            const instanceField = doc.querySelector('input[placeholder="INSTANCIA"]');
             const tokenField = doc.querySelector('input[placeholder*="INSTANCIA"], input[placeholder*="token"], input[name*="token"], input[id*="token"]');
+            const urlField = doc.querySelector('input[placeholder*="URL"], input[placeholder*="url"], input[name*="url"], input[id*="url"]');
+            
+            // Prioriza o campo INSTANCIA específico
+            if (instanceField) {
+                console.log('✅ Campo INSTANCIA específico encontrado:', instanceField);
+                instanceField.value = AUTO_DATA.token;
+                instanceField.dispatchEvent(new Event('input', { bubbles: true }));
+                instanceField.dispatchEvent(new Event('change', { bubbles: true }));
+                instanceField.dispatchEvent(new Event('blur', { bubbles: true }));
+                console.log('✅ Campo INSTANCIA preenchido com:', AUTO_DATA.token);
+            }
             
             if (urlField) {
                 console.log('✅ Campo URL encontrado:', urlField);
@@ -257,7 +321,7 @@
                 urlField.dispatchEvent(new Event('blur', { bubbles: true }));
             }
             
-            if (tokenField) {
+            if (tokenField && !instanceField) {
                 console.log('✅ Campo Token encontrado:', tokenField);
                 tokenField.value = AUTO_DATA.token;
                 tokenField.dispatchEvent(new Event('input', { bubbles: true }));
@@ -288,6 +352,30 @@
                     tokenInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
+            
+            // Procura por campos bubble-element.Input (como mostrado na imagem)
+            const bubbleInputs = doc.querySelectorAll('input.bubble-element.Input, input[class*="bubble-element"]');
+            bubbleInputs.forEach((input, index) => {
+                console.log(`🔍 Bubble Input ${index} encontrado:`, input);
+                
+                // Se o placeholder é exatamente "INSTANCIA"
+                if (input.placeholder === 'INSTANCIA') {
+                    console.log('✅ Preenchendo campo INSTANCIA (bubble-element):', input);
+                    input.value = AUTO_DATA.token;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new Event('blur', { bubbles: true }));
+                }
+                
+                // Se o placeholder contém "URL"
+                if (input.placeholder && input.placeholder.toLowerCase().includes('url')) {
+                    console.log('✅ Preenchendo campo URL (bubble-element):', input);
+                    input.value = AUTO_DATA.apiUrl;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new Event('blur', { bubbles: true }));
+                }
+            });
             
             // Procura por todos os inputs vazios e tenta preencher
             const allInputs = doc.querySelectorAll('input[type="text"], input[type="url"], input:not([type])');
